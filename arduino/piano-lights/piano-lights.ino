@@ -22,15 +22,13 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(150, PIN, NEO_GRB + NEO_KHZ800);
 
 #define MIDDLE_LED 94
 #define NUM_RIPPLES 40
+#define FRAME_DELAY 20 // 20 fps
 
-static bool ripple_active[NUM_RIPPLES];
 static uint16_t ripple_start[NUM_RIPPLES];
 static uint16_t ripple_velocity[NUM_RIPPLES];
 static uint16_t ripple_distance[NUM_RIPPLES];
 static uint8_t ripple_color[NUM_RIPPLES];
 static uint8_t ripple_ticks[NUM_RIPPLES];
-
-static bool note_on[255];
 
 void setup() {
   Serial.begin(560800);
@@ -45,81 +43,61 @@ void setup() {
 }
 
 void reset_ripple(uint8_t i, uint16_t start_pos, uint16_t velocity, uint8_t color, uint8_t ticks_remaining) {
-  ripple_active[i] = true;
   ripple_start[i] = start_pos;
   ripple_velocity[i] = velocity;
-  ripple_distance[i] = 0;  
+  ripple_distance[i] = 0;
   ripple_color[i] = color;
   ripple_ticks[i] = ticks_remaining;
 }
 
-static uint8_t next_index;
+static uint8_t next_index = 0;
+static unsigned long time = 0;
+static unsigned long last_frame = 0;
 
 void loop() {
+  time = millis();
+
   if (Serial.available() > 0) {
     char inChar = Serial.read();
+    // uint8_t start_led = (93 + (60 - inChar) * 1.5);
     uint8_t start_led = (74 + (60 - inChar) * 1.5);
     uint8_t color = (inChar % 12) * 21;
 
-    if (inChar > 0) {
-      bool on = Serial.read();
+    char on = Serial.read();
 
-      if (on) {
-        next_index = (next_index + 1) % NUM_RIPPLES;
-        // TODO log scale or something - bass notes should be super slow
-        uint16_t velocity = inChar >= 60 ? inChar / 5 : inChar / 4;
-        reset_ripple(next_index, start_led * 10, velocity, color, 500 / velocity);
-        note_on[start_led] = true;
-      } else {
-        note_on[start_led] = false;
-        strip.setPixelColor(start_led, 0);
-      }
+    if (on) {
+      // TODO log scale or something - bass notes should be super slow
+      uint16_t velocity = inChar >= 60 ? inChar / 5 : inChar / 4;
+      reset_ripple(next_index, start_led, velocity, color, 500 / velocity);
+      next_index = (next_index + 1) % NUM_RIPPLES;
     }
   }
-  step_ripple(25);
+  if (time - last_frame > FRAME_DELAY) {
+    last_frame = time;
+    step_ripple();
+  }
 }
 
-void step_ripple(uint8_t wait) {
-  for(uint8_t i = 0; i < NUM_RIPPLES; i++) {
-    if (ripple_active[i]) {
-      ripple_ticks[i]--;
-      if (note_on[ripple_start[i] / 10]) {
-        strip.setPixelColor(ripple_start[i] / 10, Wheel(ripple_color[i], true));
+void step_ripple() {
+  strip.clear();
+  for(uint8_t i = next_index; i != next_index - 1; i = i + 1 % NUM_RIPPLES) {
+    if (ripple_ticks[i] != 0) {
+      if (ripple_distance[i] == 0) { // first hit
+        strip.setPixelColor(ripple_start[i], Wheel(ripple_color[i], true));
       } else {
-        strip.setPixelColor(ripple_start[i] / 10, 0);
+        strip.setPixelColor(ripple_start[i] + ripple_distance[i], Wheel(ripple_color[i], false));
+        strip.setPixelColor(ripple_start[i] - ripple_distance[i], Wheel(ripple_color[i], false));
       }
-      if (!note_on[(ripple_start[i] + ripple_distance[i]) / 10]) {
-        strip.setPixelColor((ripple_start[i] + ripple_distance[i]) / 10, Wheel(ripple_color[i], false));
-      }
-      if (!note_on[(ripple_start[i] - ripple_distance[i]) / 10]) {
-        strip.setPixelColor((ripple_start[i] - ripple_distance[i]) / 10, Wheel(ripple_color[i], false));
-      }
-    }
-  }
-  strip.show();
-  delay(wait);
-  for(uint8_t i = 0; i < NUM_RIPPLES; i++) {
-    if (ripple_active[i]) {
-      if (!note_on[(ripple_start[i] + ripple_distance[i]) / 10]) {
-        strip.setPixelColor((ripple_start[i] + ripple_distance[i]) / 10, 0);
-      }
-      if (!note_on[(ripple_start[i] - ripple_distance[i]) / 10]) {
-        strip.setPixelColor((ripple_start[i] - ripple_distance[i]) / 10, 0);
-      }
+
       ripple_distance[i] = ripple_distance[i] + ripple_velocity[i];
       ripple_velocity[i] = (float)ripple_velocity[i] * 0.99999;
       if (ripple_velocity[i] < 1) {
         ripple_velocity[i] = 1;
       }
-      // TODO this should be a max distance instead of max ticks,
-      // or a min percentage of the original velocity
-      if (ripple_ticks[i] == 0) {
-        ripple_active[i] = false;
-        // strip.setPixelColor(ripple_start[i] / 10, 0);
-        // reset_note(i, 500 + random(100) * 10);
-      }
+      ripple_ticks[i]--;
     }
   }
+  strip.show();
 }
 
 // Input a value 0 to 255 to get a color value.
