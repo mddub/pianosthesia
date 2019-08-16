@@ -79,12 +79,14 @@ def input_main(device_id = None):
                 going = False
             if e.type in [pygame.midi.MIDIIN]:
                 # data1 is key number, data2 is velocity (0 means off)
-                # status is 144 for a key press (something different for sustain pedal press)
+                # status 128-143 is note off for channel 1-16
+                # status 144-159 is note on for channel 1-16
+                # status is something different for sustain pedal press?
                 # 93 is the middle LED
                 # 60 is middle C
-                if e.status == 144:
+                if 128 <= e.status <= 159:
+                    ser.flush()
                     ser.write([e.data1, 1 if e.data2 > 0 else 0])
-                    ser.flushOutput()
                 print (e)
 
         if i.poll():
