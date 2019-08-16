@@ -30,6 +30,8 @@ static uint16_t ripple_distance[NUM_RIPPLES];
 static uint8_t ripple_color[NUM_RIPPLES];
 static uint8_t ripple_ticks[NUM_RIPPLES];
 
+static uint8_t led_solid_color[255];
+
 void setup() {
   Serial.begin(560800);
   strip.begin();
@@ -66,10 +68,13 @@ void loop() {
     char on = Serial.read();
 
     if (on) {
+      led_solid_color[start_led] = color;
       // TODO log scale or something - bass notes should be super slow
       uint16_t velocity = inChar >= 60 ? inChar / 5 : inChar / 4;
       reset_ripple(next_index, start_led, velocity, color, 500 / velocity);
       next_index = (next_index + 1) % NUM_RIPPLES;
+    } else {
+      led_solid_color[start_led] = 0;
     }
   }
   if (time - last_frame > FRAME_DELAY) {
@@ -95,6 +100,11 @@ void step_ripple() {
         ripple_velocity[i] = 1;
       }
       ripple_ticks[i]--;
+    }
+  }
+  for(uint8_t i = 0; i < 255; i++) {
+    if(led_solid_color[i] > 0) {
+      strip.setPixelColor(i, led_solid_color[i]);
     }
   }
   strip.show();
