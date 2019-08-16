@@ -33,7 +33,7 @@ static uint8_t ripple_ticks[NUM_RIPPLES];
 static bool note_on[255];
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(560800);
   strip.begin();
   strip.show(); // Initialize all pixels to 'off'
   /*

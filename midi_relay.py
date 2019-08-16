@@ -69,7 +69,7 @@ def input_main(device_id = None):
     going = True
 
     import serial
-    ser = serial.Serial('/dev/tty.usbmodem1411', 9600, timeout=15)
+    ser = serial.Serial('/dev/tty.usbmodemfd121', 560800, timeout=15)
     while going:
         events = event_get()
         for e in events:
