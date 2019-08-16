@@ -58,10 +58,12 @@ static uint8_t next_index;
 void loop() {
   if (Serial.available() > 0) {
     char inChar = Serial.read();
-    uint8_t start_led = (93 + (60 - inChar) * 1.5);
+    uint8_t start_led = (74 + (60 - inChar) * 1.5);
     uint8_t color = (inChar % 12) * 21;
+
     if (inChar > 0) {
       bool on = Serial.read();
+
       if (on) {
         next_index = (next_index + 1) % NUM_RIPPLES;
         // TODO log scale or something - bass notes should be super slow
@@ -137,13 +139,13 @@ uint32_t Wheel(byte WheelPos, bool bright) {
   } else {
     WheelPos = 255 - WheelPos;
     if(WheelPos < 85) {
-      return strip.Color(17 - WheelPos * 0.2, 0, WheelPos * 0.2);
+      return strip.Color(9 - WheelPos * 0.1, 0, WheelPos * 0.1);
     }
     if(WheelPos < 170) {
       WheelPos -= 85;
-      return strip.Color(0, WheelPos * 0.2, 17 - WheelPos * 0.2);
+      return strip.Color(0, WheelPos * 0.1, 9 - WheelPos * 0.1);
     }
     WheelPos -= 170;
-    return strip.Color(WheelPos * 0.2, 17 - WheelPos * 0.2, 0);
+    return strip.Color(WheelPos * 0.1, 9 - WheelPos * 0.1, 0);
   }
 }
