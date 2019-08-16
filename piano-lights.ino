@@ -45,9 +45,6 @@ void setup() {
 }
 
 void reset_ripple(uint8_t i, uint16_t start_pos, uint16_t velocity, uint8_t color, uint8_t ticks_remaining) {
-  strip.setPixelColor(ripple_start[i] / 10, 0);
-  strip.setPixelColor((ripple_start[i] + ripple_distance[i]) / 10, 0);
-  strip.setPixelColor((ripple_start[i] - ripple_distance[i]) / 10, 0);
   ripple_active[i] = true;
   ripple_start[i] = start_pos;
   ripple_velocity[i] = velocity;
@@ -89,16 +86,24 @@ void step_ripple(uint8_t wait) {
       } else {
         strip.setPixelColor(ripple_start[i] / 10, 0);
       }
-      strip.setPixelColor((ripple_start[i] + ripple_distance[i]) / 10, Wheel(ripple_color[i], false));
-      strip.setPixelColor((ripple_start[i] - ripple_distance[i]) / 10, Wheel(ripple_color[i], false));
+      if (!note_on[(ripple_start[i] + ripple_distance[i]) / 10]) {
+        strip.setPixelColor((ripple_start[i] + ripple_distance[i]) / 10, Wheel(ripple_color[i], false));
+      }
+      if (!note_on[(ripple_start[i] - ripple_distance[i]) / 10]) {
+        strip.setPixelColor((ripple_start[i] - ripple_distance[i]) / 10, Wheel(ripple_color[i], false));
+      }
     }
   }
   strip.show();
   delay(wait);
   for(uint8_t i = 0; i < NUM_RIPPLES; i++) {
     if (ripple_active[i]) {
-      strip.setPixelColor((ripple_start[i] + ripple_distance[i]) / 10, 0);
-      strip.setPixelColor((ripple_start[i] - ripple_distance[i]) / 10, 0);
+      if (!note_on[(ripple_start[i] + ripple_distance[i]) / 10]) {
+        strip.setPixelColor((ripple_start[i] + ripple_distance[i]) / 10, 0);
+      }
+      if (!note_on[(ripple_start[i] - ripple_distance[i]) / 10]) {
+        strip.setPixelColor((ripple_start[i] - ripple_distance[i]) / 10, 0);
+      }
       ripple_distance[i] = ripple_distance[i] + ripple_velocity[i];
       ripple_velocity[i] = (float)ripple_velocity[i] * 0.99999;
       if (ripple_velocity[i] < 1) {
