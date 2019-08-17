@@ -21,8 +21,8 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(150, PIN, NEO_GRB + NEO_KHZ800);
 // on a live circuit...if you must, connect GND first.
 
 #define MIDDLE_LED 94
-#define NUM_RIPPLES 40
-#define FRAME_DELAY 20 // 20 fps
+#define NUM_RIPPLES 20
+#define FRAME_DELAY 50 // 20 fps
 
 static uint16_t ripple_start[NUM_RIPPLES];
 static uint16_t ripple_velocity[NUM_RIPPLES];
@@ -30,9 +30,14 @@ static uint16_t ripple_distance[NUM_RIPPLES];
 static uint8_t ripple_color[NUM_RIPPLES];
 static uint8_t ripple_ticks[NUM_RIPPLES];
 
+static bool led_on[255];
 static uint8_t led_solid_color[255];
 
+static uint8_t next_index = 0;
+static unsigned long last_frame = 0;
+
 void setup() {
+  last_frame = millis();
   Serial.begin(560800);
   strip.begin();
   strip.show(); // Initialize all pixels to 'off'
@@ -46,20 +51,16 @@ void setup() {
 
 void reset_ripple(uint8_t i, uint16_t start_pos, uint16_t velocity, uint8_t color, uint8_t ticks_remaining) {
   ripple_start[i] = start_pos;
-  ripple_velocity[i] = velocity;
+  ripple_velocity[i] = velocity ;
   ripple_distance[i] = 0;
   ripple_color[i] = color;
   ripple_ticks[i] = ticks_remaining;
 }
 
-static uint8_t next_index = 0;
-static unsigned long time = 0;
-static unsigned long last_frame = 0;
-
 void loop() {
-  time = millis();
+  unsigned long now = millis();
 
-  if (Serial.available() > 0) {
+  while (Serial.available() > 0) {
     char inChar = Serial.read();
     // uint8_t start_led = (93 + (60 - inChar) * 1.5);
     uint8_t start_led = (74 + (60 - inChar) * 1.5);
@@ -68,24 +69,24 @@ void loop() {
     char on = Serial.read();
 
     if (on) {
+      led_on[start_led] = true;
       led_solid_color[start_led] = color;
-      // TODO log scale or something - bass notes should be super slow
-      uint16_t velocity = inChar >= 60 ? inChar / 5 : inChar / 4;
+      uint16_t velocity = 6;
       reset_ripple(next_index, start_led, velocity, color, 500 / velocity);
       next_index = (next_index + 1) % NUM_RIPPLES;
     } else {
-      led_solid_color[start_led] = 0;
+      led_on[start_led] = false;
     }
   }
-  if (time - last_frame > FRAME_DELAY) {
-    last_frame = time;
+  if ((now - last_frame) > FRAME_DELAY) {
+    last_frame = now;
     step_ripple();
   }
 }
 
 void step_ripple() {
   strip.clear();
-  for(uint8_t i = next_index; i != next_index - 1; i = i + 1 % NUM_RIPPLES) {
+  for(uint8_t i = next_index; i != (next_index + NUM_RIPPLES - 1) % NUM_RIPPLES; i = (i + 1) % NUM_RIPPLES) {
     if (ripple_ticks[i] != 0) {
       if (ripple_distance[i] == 0) { // first hit
         strip.setPixelColor(ripple_start[i], Wheel(ripple_color[i], true));
@@ -103,8 +104,8 @@ void step_ripple() {
     }
   }
   for(uint8_t i = 0; i < 255; i++) {
-    if(led_solid_color[i] > 0) {
-      strip.setPixelColor(i, led_solid_color[i]);
+    if(led_on[i]) {
+      strip.setPixelColor(i, Wheel(led_solid_color[i], true));
     }
   }
   strip.show();
