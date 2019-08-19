@@ -36,6 +36,61 @@ static uint8_t led_solid_color[255];
 static uint8_t next_index = 0;
 static unsigned long last_frame = 0;
 
+// Input a value 0 to 255 to get a color value.
+// The colours are a transition r - g - b - back to r.
+uint32_t Wheel(byte WheelPos, bool bright) {
+  if (bright) {
+    WheelPos = 255 - WheelPos;
+    if(WheelPos < 85) {
+      return strip.Color(255 - WheelPos * 3, 0, WheelPos * 3);
+    }
+    if(WheelPos < 170) {
+      WheelPos -= 85;
+      return strip.Color(0, WheelPos * 3, 255 - WheelPos * 3);
+    }
+    WheelPos -= 170;
+    return strip.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
+  } else {
+    WheelPos = 255 - WheelPos;
+    if(WheelPos < 85) {
+      return strip.Color(9 - WheelPos * 0.1, 0, WheelPos * 0.1);
+    }
+    if(WheelPos < 170) {
+      WheelPos -= 85;
+      return strip.Color(0, WheelPos * 0.1, 9 - WheelPos * 0.1);
+    }
+    WheelPos -= 170;
+    return strip.Color(WheelPos * 0.1, 9 - WheelPos * 0.1, 0);
+  }
+}
+
+void step_ripple() {
+  strip.clear();
+  for(uint8_t i = next_index; i != (next_index + NUM_RIPPLES - 1) % NUM_RIPPLES; i = (i + 1) % NUM_RIPPLES) {
+    if (ripple_ticks[i] != 0) {
+      if (ripple_distance[i] == 0) { // first hit
+        strip.setPixelColor(ripple_start[i], Wheel(ripple_color[i], true));
+      } else {
+        strip.setPixelColor(ripple_start[i] + ripple_distance[i], Wheel(ripple_color[i], false));
+        strip.setPixelColor(ripple_start[i] - ripple_distance[i], Wheel(ripple_color[i], false));
+      }
+
+      ripple_distance[i] = ripple_distance[i] + ripple_velocity[i];
+      ripple_velocity[i] = (float)ripple_velocity[i] * 0.99999;
+      if (ripple_velocity[i] < 1) {
+        ripple_velocity[i] = 1;
+      }
+      ripple_ticks[i]--;
+    }
+  }
+  for(uint8_t i = 0; i < 255; i++) {
+    if(led_on[i]) {
+      strip.setPixelColor(i, Wheel(led_solid_color[i], true));
+    }
+  }
+  strip.show();
+}
+
 void setup() {
   last_frame = millis();
   Serial.begin(560800);
@@ -81,60 +136,5 @@ void loop() {
   if ((now - last_frame) > FRAME_DELAY) {
     last_frame = now;
     step_ripple();
-  }
-}
-
-void step_ripple() {
-  strip.clear();
-  for(uint8_t i = next_index; i != (next_index + NUM_RIPPLES - 1) % NUM_RIPPLES; i = (i + 1) % NUM_RIPPLES) {
-    if (ripple_ticks[i] != 0) {
-      if (ripple_distance[i] == 0) { // first hit
-        strip.setPixelColor(ripple_start[i], Wheel(ripple_color[i], true));
-      } else {
-        strip.setPixelColor(ripple_start[i] + ripple_distance[i], Wheel(ripple_color[i], false));
-        strip.setPixelColor(ripple_start[i] - ripple_distance[i], Wheel(ripple_color[i], false));
-      }
-
-      ripple_distance[i] = ripple_distance[i] + ripple_velocity[i];
-      ripple_velocity[i] = (float)ripple_velocity[i] * 0.99999;
-      if (ripple_velocity[i] < 1) {
-        ripple_velocity[i] = 1;
-      }
-      ripple_ticks[i]--;
-    }
-  }
-  for(uint8_t i = 0; i < 255; i++) {
-    if(led_on[i]) {
-      strip.setPixelColor(i, Wheel(led_solid_color[i], true));
-    }
-  }
-  strip.show();
-}
-
-// Input a value 0 to 255 to get a color value.
-// The colours are a transition r - g - b - back to r.
-uint32_t Wheel(byte WheelPos, bool bright) {
-  if (bright) {
-    WheelPos = 255 - WheelPos;
-    if(WheelPos < 85) {
-      return strip.Color(255 - WheelPos * 3, 0, WheelPos * 3);
-    }
-    if(WheelPos < 170) {
-      WheelPos -= 85;
-      return strip.Color(0, WheelPos * 3, 255 - WheelPos * 3);
-    }
-    WheelPos -= 170;
-    return strip.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
-  } else {
-    WheelPos = 255 - WheelPos;
-    if(WheelPos < 85) {
-      return strip.Color(9 - WheelPos * 0.1, 0, WheelPos * 0.1);
-    }
-    if(WheelPos < 170) {
-      WheelPos -= 85;
-      return strip.Color(0, WheelPos * 0.1, 9 - WheelPos * 0.1);
-    }
-    WheelPos -= 170;
-    return strip.Color(WheelPos * 0.1, 9 - WheelPos * 0.1, 0);
   }
 }
