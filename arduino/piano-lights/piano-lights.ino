@@ -70,7 +70,7 @@ uint32_t Wheel(byte WheelPos, bool bright) {
 
 void step_ripple() {
   strip.clear();
-  for(uint8_t i = next_index; i != (next_index + NUM_RIPPLES - 1) % NUM_RIPPLES; i = (i + 1) % NUM_RIPPLES) {
+  for(uint8_t i = 0; i < NUM_RIPPLES; i++) {
     if (ripple_ticks[i] != 0) {
       if (ripple_ticks[i] == INITIAL_RIPPLE_TICKS) { // first hit
         strip.setPixelColor(ripple_start[i], Wheel(ripple_color[i], true));
