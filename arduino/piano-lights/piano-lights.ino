@@ -97,7 +97,7 @@ void step_ripple() {
 
 void setup() {
   last_frame = millis();
-  Serial.begin(9600);
+  Serial.begin(560800);
   strip.begin();
   strip.show(); // Initialize all pixels to 'off'
   /*
