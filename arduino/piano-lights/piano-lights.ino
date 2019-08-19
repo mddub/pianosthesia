@@ -129,7 +129,7 @@ void loop() {
       char inChar = Serial.read();
       char on = Serial.read();
 
-      uint8_t start_led = (74 + (60 - inChar) * 1.5);
+      uint8_t start_led = (16094 - 149.0 * inChar) / 89.0;
       uint8_t color = (inChar % 12) * 21;
 
       if (on) {
