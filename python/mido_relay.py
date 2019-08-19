@@ -5,7 +5,7 @@ import mido
 import serial
 
 
-ARDUINO_BAUD_RATE = 9600
+ARDUINO_BAUD_RATE = 560800
 
 serials = os.listdir('/dev/serial/by-id/')
 print('\n'.join(serials) + '\n')
