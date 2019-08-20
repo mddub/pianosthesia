@@ -1,5 +1,6 @@
 from collections import defaultdict
 import os
+import time
 
 import mido
 import serial
@@ -7,39 +8,117 @@ import serial
 
 ARDUINO_BAUD_RATE = 560800
 
-serials = os.listdir('/dev/serial/by-id/')
-print('\n'.join(serials) + '\n')
-arduino_port = '/dev/serial/by-id/' + [s for s in serials if 'arduino' in s.lower()][0]
+# in seconds
+AUTO_PLAY_DELAY_AFTER_SCRIPT_START = 5
+AUTO_PLAY_DELAY_AFTER_LAST_INPUT = 600
+AUTO_PLAY_DELAY_BETWEEN_TRACKS = 300
 
-midi_inputs = mido.get_input_names()
-print('\n'.join(midi_inputs) + '\n')
-keyboard_port = [
-    m for m in midi_inputs
-    if any(name in m for name in ('Keystation', 'Roland', 'Portable Grand'))
-    and m.endswith(':0')
-][0]
+MIDI_TRACKS_DIR = './tracks'
 
-# Note indices for 88-key keyboard go from 21 to 108
-key_on = defaultdict(bool)
 
-notes = []
+all_midi_choices = [
+    os.path.join(MIDI_TRACKS_DIR, f)
+    for f in sorted(os.listdir(MIDI_TRACKS_DIR))
+    if f.endswith('.mid')
+]
+remaining_midi_choices = all_midi_choices.copy()
+print(all_midi_choices)
 
-with mido.open_input(keyboard_port) as midi_in:
-    with serial.Serial(arduino_port, ARDUINO_BAUD_RATE) as arduino_serial:
-        while True:
-            msg = midi_in.poll()
-            if msg:
-                if msg.type == 'note_on':
-                    key_on[msg.note] = msg.velocity > 0
-                    notes.extend([msg.note, 1 if msg.velocity > 0 else 0])
-                elif msg.type == 'note_off':
-                    key_on[msg.note] = False
-                    notes.extend([msg.note, 0])
-                print(msg)
-            if arduino_serial.in_waiting > 0:
-                bytes = arduino_serial.read(arduino_serial.in_waiting)
-                print(bytes)
-                print(notes)
-                arduino_serial.write([int(len(notes) / 2)] + notes)
-                arduino_serial.flush()
-                notes = []
+def choose_next_track_file():
+    global remaining_midi_choices
+    if not remaining_midi_choices:
+        remaining_midi_choices = all_midi_choices.copy()
+    return remaining_midi_choices.pop(0)
+
+
+next_track_start_time = time.time() + AUTO_PLAY_DELAY_AFTER_SCRIPT_START
+track_note_on = {i: False for i in range(21, 109)}
+track_messages = []
+
+def get_next_midi_message(midi_in, midi_out):
+    global next_track_start_time
+    global track_messages
+    global track_note_on
+    global track_start
+    global elapsed_track_time
+
+    msg_in = midi_in.poll()
+
+    if msg_in:
+        next_track_start_time = time.time() + AUTO_PLAY_DELAY_AFTER_LAST_INPUT
+        track_messages = []
+        return msg_in
+
+    elif time.time() < next_track_start_time and any(track_note_on.values()):
+        # clear pixels that are still on after human input interrupted the track
+        on_note = [note for note, on in track_note_on.items() if on][0]
+        track_note_on[on_note] = False
+        return mido.Message('note_off', note=on_note, velocity=0)
+
+    elif track_messages:
+        if time.time() - track_start > elapsed_track_time + track_messages[0].time:
+            msg = track_messages.pop(0)
+            if msg.type == 'note_on' and msg.velocity > 0:
+                track_note_on[msg.note] = True
+            elif msg.type == 'note_off' or (msg.type == 'note_on' and msg.velocity == 0):
+                track_note_on[msg.note] = False
+            elapsed_track_time += msg.time
+            midi_out.send(msg)
+            if not track_messages:
+                next_track_start_time = time.time() + AUTO_PLAY_DELAY_BETWEEN_TRACKS
+            return msg
+
+    elif time.time() > next_track_start_time:
+        infile = mido.MidiFile(choose_next_track_file())
+        track_messages = [msg for msg in infile if not msg.is_meta]
+        track_start = time.time()
+        elapsed_track_time = 0
+
+    return None
+
+
+note_send_buffer = []
+
+def loop(midi_in, midi_out, arduino_serial):
+    global note_send_buffer
+    msg = get_next_midi_message(midi_in, midi_out)
+    if msg:
+        if msg.type == 'note_on':
+            note_send_buffer.extend([msg.note, 1 if msg.velocity > 0 else 0])
+        elif msg.type == 'note_off':
+            note_send_buffer.extend([msg.note, 0])
+        print(msg)
+    if arduino_serial.in_waiting > 0:
+        bytes = arduino_serial.read(arduino_serial.in_waiting)
+        print(bytes)
+        print(note_send_buffer)
+        arduino_serial.write([int(len(note_send_buffer) / 2)] + note_send_buffer)
+        arduino_serial.flush()
+        note_send_buffer = []
+
+
+if __name__ == '__main__':
+    serials = os.listdir('/dev/serial/by-id/')
+    print('\n'.join(serials) + '\n')
+    arduino_port = '/dev/serial/by-id/' + [s for s in serials if 'arduino' in s.lower()][0]
+
+    midi_inputs = mido.get_input_names()
+    print('\n'.join(midi_inputs) + '\n')
+    keyboard_port = [
+        m for m in midi_inputs
+        if any(name in m for name in ('Keystation', 'Roland', 'Portable Grand'))
+        and m.endswith(':0')
+    ][0]
+
+    print('waiting for fluidsynth device...')
+    fluidsynth_devices = []
+    while not fluidsynth_devices:
+        fluidsynth_devices = [m for m in mido.get_output_names() if 'fluid' in m.lower()]
+    print('\n'.join(fluidsynth_devices) + '\n')
+    fluidsynth_port = fluidsynth_devices[0]
+
+    with mido.open_input(keyboard_port) as midi_in:
+        with mido.open_output(mido.get_output_names()[0]) as midi_out:
+            with serial.Serial(arduino_port, ARDUINO_BAUD_RATE) as arduino_serial:
+                while True:
+                    loop(midi_in, midi_out, arduino_serial)
