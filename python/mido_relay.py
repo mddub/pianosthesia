@@ -46,7 +46,14 @@ def get_next_midi_message(midi_in, midi_out):
 
     if msg_in:
         next_track_start_time = time.time() + AUTO_PLAY_DELAY_AFTER_LAST_INPUT
-        track_messages = []
+
+        if track_messages:
+            track_messages = []
+            # volume
+            midi_out.send(mido.Message('control_change', channel=0, control=7, value=100))
+            # reset all controllers
+            midi_out.send(mido.Message('control_change', channel=0, control=121, value=0))
+
         return msg_in
 
     elif time.time() < next_track_start_time and any(track_note_on.values()):
@@ -90,8 +97,6 @@ def loop(midi_in, midi_out, arduino_serial):
         print(msg)
     if arduino_serial.in_waiting > 0:
         bytes = arduino_serial.read(arduino_serial.in_waiting)
-        print(bytes)
-        print(note_send_buffer)
         arduino_serial.write([int(len(note_send_buffer) / 2)] + note_send_buffer)
         arduino_serial.flush()
         note_send_buffer = []
@@ -118,7 +123,9 @@ if __name__ == '__main__':
     fluidsynth_port = fluidsynth_devices[0]
 
     with mido.open_input(keyboard_port) as midi_in:
-        with mido.open_output(mido.get_output_names()[0]) as midi_out:
+        with mido.open_output(fluidsynth_port) as midi_out:
             with serial.Serial(arduino_port, ARDUINO_BAUD_RATE) as arduino_serial:
+                arduino_serial.write([0])
+                arduino_serial.flush()
                 while True:
                     loop(midi_in, midi_out, arduino_serial)
