@@ -13,12 +13,13 @@ AUTO_PLAY_DELAY_AFTER_SCRIPT_START = 5
 AUTO_PLAY_DELAY_AFTER_LAST_INPUT = 600
 AUTO_PLAY_DELAY_BETWEEN_TRACKS = 300
 
-MIDI_TRACKS_DIR = './tracks'
+MIDI_TRACKS_DIR = 'tracks'
 
 
+abs_midi_tracks_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), MIDI_TRACKS_DIR)
 all_midi_choices = [
-    os.path.join(MIDI_TRACKS_DIR, f)
-    for f in sorted(os.listdir(MIDI_TRACKS_DIR))
+    os.path.join(abs_midi_tracks_dir, f)
+    for f in sorted(os.listdir(abs_midi_tracks_dir))
     if f.endswith('.mid')
 ]
 remaining_midi_choices = all_midi_choices.copy()
