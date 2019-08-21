@@ -1,5 +1,5 @@
-from collections import defaultdict
 import os
+import random
 import time
 
 import mido
@@ -16,6 +16,9 @@ AUTO_PLAY_DELAY_BETWEEN_TRACKS = 300
 MIDI_TRACKS_DIR = 'tracks'
 
 
+random.seed(time.time())
+
+
 abs_midi_tracks_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), MIDI_TRACKS_DIR)
 all_midi_choices = [
     os.path.join(abs_midi_tracks_dir, f)
@@ -23,6 +26,8 @@ all_midi_choices = [
     if f.endswith('.mid')
 ]
 remaining_midi_choices = all_midi_choices.copy()
+# start at a random point in the track order
+remaining_midi_choices = remaining_midi_choices[-random.randint(1, len(remaining_midi_choices)):]
 print(all_midi_choices)
 
 def choose_next_track_file():
