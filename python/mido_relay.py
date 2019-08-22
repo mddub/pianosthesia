@@ -121,11 +121,15 @@ if __name__ == '__main__':
         and m.endswith(':0')
     ][0]
 
-    print('sleeping while fluidsynth initializes...')
-    time.sleep(10)
-    midi_outputs = mido.get_output_names()
-    print('\n'.join(midi_outputs) + '\n')
-    fluidsynth_port = [m for m in midi_outputs if 'fluid' in m.lower()][0]
+    fluidsynth_port = None
+    while not fluidsynth_port:
+        midi_outputs = mido.get_output_names()
+        print('\n'.join(midi_outputs) + '\n')
+        try:
+            fluidsynth_port = [m for m in midi_outputs if 'fluid' in m.lower()][0]
+        except IndexError:
+            print('sleeping while fluidsynth initializes...')
+            time.sleep(10)
 
     with mido.open_input(keyboard_port) as midi_in:
         with mido.open_output(fluidsynth_port) as midi_out:
