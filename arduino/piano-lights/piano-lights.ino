@@ -20,7 +20,7 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(150, PIN, NEO_GRB + NEO_KHZ800);
 // and minimize distance between Arduino and first pixel.  Avoid connecting
 // on a live circuit...if you must, connect GND first.
 
-#define NUM_RIPPLES 30
+#define NUM_RIPPLES 50
 #define FRAME_DELAY 20
 #define INITIAL_RIPPLE_TICKS 50
 #define INITIAL_RIPPLE_VELOCITY 1.5
