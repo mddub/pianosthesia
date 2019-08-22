@@ -57,6 +57,8 @@ def get_next_midi_message(midi_in, midi_out):
             track_messages = []
             # volume
             midi_out.send(mido.Message('control_change', channel=0, control=7, value=100))
+            # all sound off
+            midi_out.send(mido.Message('control_change', channel=0, control=120, value=0))
             # reset all controllers
             midi_out.send(mido.Message('control_change', channel=0, control=121, value=0))
 
