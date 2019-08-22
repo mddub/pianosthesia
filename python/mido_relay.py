@@ -13,28 +13,36 @@ AUTO_PLAY_DELAY_AFTER_SCRIPT_START = 5
 AUTO_PLAY_DELAY_AFTER_LAST_INPUT = 600
 AUTO_PLAY_DELAY_BETWEEN_TRACKS = 300
 
-MIDI_TRACKS_DIR = 'tracks'
+MIDI_TRACKS_DIR = '/home/pi/tracks'
+MIDI_TRACKS_ORDER = []
 
 
 random.seed(time.time())
 
 
-abs_midi_tracks_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), MIDI_TRACKS_DIR)
-all_midi_choices = [
-    os.path.join(abs_midi_tracks_dir, f)
-    for f in sorted(os.listdir(abs_midi_tracks_dir))
-    if f.endswith('.mid')
-]
-remaining_midi_choices = all_midi_choices.copy()
+track_files = sorted(os.listdir(MIDI_TRACKS_DIR))
+
+tracks_not_found = set(MIDI_TRACKS_ORDER) - set(track_files)
+if tracks_not_found:
+    print('Track order specified these tracks, but did not find them in {}, so skipping:'.format(MIDI_TRACKS_DIR))
+    print(', '.join(tracks_not_found) + '\n')
+tracks_not_expected = sorted(set(track_files) - set(MIDI_TRACKS_ORDER))
+if tracks_not_expected:
+    print('Found these tracks in {}, but not specified in track order, so adding at the end:'.format(MIDI_TRACKS_DIR))
+    print(', '.join(tracks_not_expected) + '\n')
+
+all_track_choices = [t for t in MIDI_TRACKS_ORDER if t in track_files] + tracks_not_expected
+print(', '.join(all_track_choices) + '\n')
+
 # start at a random point in the track order
-remaining_midi_choices = remaining_midi_choices[-random.randint(1, len(remaining_midi_choices)):]
-print(all_midi_choices)
+remaining_track_choices = all_track_choices.copy()
+remaining_track_choices = remaining_track_choices.copy()[-random.randint(1, len(remaining_track_choices)):]
 
 def choose_next_track_file():
-    global remaining_midi_choices
-    if not remaining_midi_choices:
-        remaining_midi_choices = all_midi_choices.copy()
-    return remaining_midi_choices.pop(0)
+    global remaining_track_choices
+    if not remaining_track_choices:
+        remaining_track_choices = all_track_choices.copy()
+    return os.path.join(MIDI_TRACKS_DIR, remaining_track_choices.pop(0))
 
 
 next_track_start_time = time.time() + AUTO_PLAY_DELAY_AFTER_SCRIPT_START
